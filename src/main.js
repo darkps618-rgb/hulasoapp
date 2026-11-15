@@ -1,53 +1,32 @@
-import { configured, sb, signIn, listenForOAuthReturn, getUser, displayName, suggestName, saveName, signOut } from './auth.js';
 import { getStream, Rec, saveClip, listClips, shareClip, deleteClip } from './recorder.js';
 
 const app = document.getElementById('app');
 const $ = (s) => app.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-const ICON = { google: '<b>G</b>', discord: '<b>D</b>', apple: '<b> </b>' };
+const store = {
+  get: () => { try { return localStorage.getItem('halo_name') || ''; } catch { return ''; } },
+  set: (v) => { try { localStorage.setItem('halo_name', v); } catch {} }
+};
 
-function renderSetup() {
-  app.innerHTML = `<div class="center"><img class="logo" src="/logo.png" alt="Halo"><h1>Halo</h1>
-  <p class="sub">Sign-in isn't configured yet.</p>
-  <p class="note">Copy <b>.env.example</b> to <b>.env</b>, add your Supabase URL and anon key, then rebuild. See the README.</p></div>`;
-}
-
-function renderLogin(msg = '') {
+function renderName() {
   app.innerHTML = `<div class="center">
     <img class="logo" src="/logo.png" alt="Halo logo"><h1>Welcome to Halo</h1>
-    <p class="sub">Sign up or log in to start recording and streaming.</p>
-    <button class="btn google" data-p="google">${ICON.google} Continue with Google</button>
-    <button class="btn discord" data-p="discord">${ICON.discord} Continue with Discord</button>
-    <button class="btn apple" data-p="apple">${ICON.apple} Continue with Apple</button>
-    <div class="err" id="err">${esc(msg)}</div>
-    <p class="note">New here? Choosing a provider creates your account automatically.</p></div>`;
-  app.querySelectorAll('[data-p]').forEach(b => b.onclick = async () => {
-    $('#err').textContent = '';
-    try { await signIn(b.dataset.p); } catch (e) { $('#err').textContent = e.message; }
-  });
-}
-
-function renderName(user) {
-  app.innerHTML = `<div class="center">
-    <img class="logo" src="/logo.png" alt="Halo logo"><h1>Set your name</h1>
-    <p class="sub">This is how you'll appear in Halo.</p>
-    <input type="text" id="nm" maxlength="32" placeholder="Display name" value="${esc(suggestName(user))}" autocomplete="nickname">
+    <p class="sub">Choose a name to get started.</p>
+    <input type="text" id="nm" maxlength="32" placeholder="Your name" value="${esc(store.get())}" autocomplete="nickname">
     <div class="err" id="err"></div>
     <button class="btn p" id="go">Continue</button></div>`;
-  $('#go').onclick = async () => {
+  $('#go').onclick = () => {
     const v = $('#nm').value.trim();
     if (v.length < 2) { $('#err').textContent = 'Please enter at least 2 characters.'; return; }
-    const { error } = await saveName(v);
-    if (error) { $('#err').textContent = error.message; return; }
-    route();
+    store.set(v); route();
   };
 }
 
-function renderHome(user) {
+function renderHome(userName) {
   let mode = 'camera', facing = 'user', stream = null, rec = null, tick = null, t0 = 0, paused = false;
   app.innerHTML = `
-  <div class="top"><img src="/logo.png" alt=""><b>Halo</b><button class="who" id="who">${esc(displayName(user))}</button></div>
+  <div class="top"><img src="/logo.png" alt=""><b>Halo</b><button class="who" id="who">${esc(userName)}</button></div>
   <div class="stage"><video id="pv" muted playsinline autoplay></video><div class="idle" id="idle">Tap the red button to start</div><div class="pill" id="pill">Ready</div></div>
   <div class="seg"><button data-m="camera" class="on">Camera</button><button data-m="screen">Screen</button></div>
   <div class="err" id="err"></div>
@@ -100,7 +79,7 @@ function renderHome(user) {
     app.querySelectorAll('[data-m]').forEach(x => x.classList.toggle('on', x === b));
     mode === 'camera' ? open() : (close(), $('#idle').style.display = '');
   });
-  $('#who').onclick = async () => { if (confirm('Log out?')) { close(); await signOut(); route(); } };
+  $('#who').onclick = () => { close(); renderName(); };
 
   async function refresh() {
     const files = await listClips();
@@ -112,14 +91,10 @@ function renderHome(user) {
   refresh(); open();
 }
 
-async function route(msg) {
-  if (!configured) return renderSetup();
-  const { data } = await sb.auth.getSession();
-  if (!data.session) return renderLogin(msg);
-  const user = await getUser();
-  if (!displayName(user)) return renderName(user);
-  renderHome(user);
+function route() {
+  const n = store.get();
+  if (!n) return renderName();
+  renderHome(n);
 }
 
-if (configured) listenForOAuthReturn(() => route(), (e) => route(e.message));
 route();
