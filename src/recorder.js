@@ -48,20 +48,20 @@ const toB64 = blob => new Promise((res, rej) => {
 export async function saveClip(blob) {
   const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
   const name = `Halo-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.${ext}`;
-  await Filesystem.writeFile({ path: `${DIR}/${name}`, data: await toB64(blob), directory: Directory.Documents, recursive: true });
+  await Filesystem.writeFile({ path: `${DIR}/${name}`, data: await toB64(blob), directory: Directory.External, recursive: true });
   return name;
 }
 
 export async function listClips() {
   try {
-    const { files } = await Filesystem.readdir({ path: DIR, directory: Directory.Documents });
+    const { files } = await Filesystem.readdir({ path: DIR, directory: Directory.External });
     return files.filter(f => /\.(mp4|webm)$/i.test(f.name)).sort((a, b) => b.name.localeCompare(a.name));
   } catch { return []; }
 }
 
 export async function shareClip(name) {
-  const { uri } = await Filesystem.getUri({ path: `${DIR}/${name}`, directory: Directory.Documents });
+  const { uri } = await Filesystem.getUri({ path: `${DIR}/${name}`, directory: Directory.External });
   await Share.share({ title: name, url: uri });
 }
 
-export const deleteClip = name => Filesystem.deleteFile({ path: `${DIR}/${name}`, directory: Directory.Documents });
+export const deleteClip = name => Filesystem.deleteFile({ path: `${DIR}/${name}`, directory: Directory.External });
