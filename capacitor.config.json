@@ -1,0 +1,7 @@
+{
+  "appId": "com.halo.mobile",
+  "appName": "Halo",
+  "webDir": "dist",
+  "backgroundColor": "#0f1024",
+  "android": { "allowMixedContent": false }
+}
